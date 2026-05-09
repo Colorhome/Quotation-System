@@ -738,8 +738,7 @@ function downloadPDF() {
    GOOGLE SHEET SUBMIT
 ============================================================ */
 async function submitToSheet() {
-  // ⚠️ REPLACE with your Google Apps Script Web App URL
-  const SHEET_URL = 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
+  const SHEET_URL = 'https://script.google.com/macros/s/AKfycbyQRG8TjoalakJYu638X9nc0cCE_12kxxuQJFQioDXh-NaVsDBUaehcMTo6oqIHshpc/exec';
 
   const custName = document.getElementById('cust-name').value.trim();
   const custPhone = document.getElementById('cust-phone').value.trim();
@@ -749,10 +748,15 @@ async function submitToSheet() {
   const rate = Number(document.getElementById('global-rate').value)||25;
   const totalAmt = rooms.reduce((s,r) => s+r.amount, 0);
   const totalSqft = rooms.reduce((s,r) => s+r.qty, 0);
-  const today = new Date().toLocaleDateString('en-IN');
+  const today = new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
   const cfg = layoutConfig[selectedLayout];
 
+  // Quotation number (same logic as preview)
+  const now = new Date();
+  const qNo = 'CHQ-'+now.getFullYear()+String(now.getMonth()+1).padStart(2,'0')+String(now.getDate()).padStart(2,'0')+'-'+Math.floor(100+Math.random()*900);
+
   const payload = {
+    quotationNo: qNo,
     date: today,
     customerName: custName,
     phone: custPhone,
@@ -762,20 +766,37 @@ async function submitToSheet() {
     totalSqft: totalSqft.toFixed(0),
     totalAmount: totalAmt.toFixed(2),
     note: noteText,
-    rooms: rooms.map(r => `${r.area}: ${r.qty} SQFT = ₹${r.amount.toFixed(2)}`).join(' | ')
+    // Human readable summary for Sheet column
+    rooms: rooms.map(r => `${r.area}: ${r.qty} SQFT = ₹${r.amount.toFixed(2)}`).join(' | '),
+    // Full JSON for PDF generation in Apps Script
+    roomsJSON: JSON.stringify(rooms.map(r => ({
+      area: r.area,
+      qty: r.qty,
+      rate: r.rate,
+      amount: r.amount
+    })))
   };
 
+  const btn = document.querySelector('.btn-success');
+  btn.disabled = true;
+  btn.textContent = '⏳ Submitting...';
+  showToast('Submitting to Google Sheet & Drive...','success');
+
   try {
-    showToast('Submitting to Google Sheet...','success');
-    const res = await fetch(SHEET_URL, {
+    // Use no-cors for cross-origin; Apps Script handles CORS
+    await fetch(SHEET_URL, {
       method: 'POST',
       mode: 'no-cors',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    showToast('✓ Data submitted to Google Sheet!','success');
-  } catch(e) {
-    showToast('⚠ Could not reach Google Sheet. Check SHEET_URL.','error');
+    showToast('✓ Data saved to Sheet & PDF uploaded to Drive!','success');
+    btn.textContent = '✔ Submitted!';
+    btn.style.background = '#15803d';
+  } catch(err) {
+    showToast('⚠ Submission failed: ' + err.message,'error');
+    btn.disabled = false;
+    btn.textContent = '✔ Submit to Google Sheet';
   }
 }
 

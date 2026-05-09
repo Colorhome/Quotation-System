@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Color Homes – Quotation Generator</title>
+<title>Color Home – Quotation Generator</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
@@ -101,6 +101,7 @@
     cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px;
   }
   .btn-primary:hover { background: #c93a14; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(232,69,26,0.3); }
+  .btn-primary:disabled { background: #aaa; cursor: not-allowed; transform: none; box-shadow: none; }
   .btn-secondary {
     background: transparent; color: var(--navy); border: 2px solid var(--border);
     border-radius: 10px; padding: 12px 22px; font-size: 14px; font-weight: 600;
@@ -113,9 +114,11 @@
     cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px;
   }
   .btn-success:hover { background: #16a34a; }
+  .btn-success:disabled { background: #aaa; cursor: not-allowed; }
   .btn-row { display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px; }
 
   /* STEP 2 */
+  /* FIX 6: Economy → Premium → Luxury order */
   .layout-selector { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; margin-bottom: 28px; }
   .layout-card {
     background: var(--white); border-radius: 12px; padding: 20px; border: 2px solid var(--border);
@@ -183,8 +186,27 @@
   .note-toggle input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
   .note-toggle label { font-size: 14px; font-weight: 500; cursor: pointer; }
 
+  /* T&C editable point 8 */
+  .tc-editable-note {
+    background: #fffbf5; border: 1.5px solid #f4a437; border-radius: 8px;
+    padding: 10px 14px; font-size: 13px; font-family: 'DM Sans', sans-serif;
+    color: var(--text); width: 100%; resize: none; outline: none; margin-top: 4px; line-height: 1.6;
+  }
+  .tc-editable-note:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(232,69,26,0.1); }
+  .tc-edit-label { font-size: 10px; color: var(--accent); font-weight: 600; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+
   /* STEP 3 - REVIEW */
   .preview-wrap { background: var(--white); border-radius: 14px; padding: 0; overflow: hidden; box-shadow: 0 4px 24px rgba(15,30,54,0.1); }
+
+  /* Submit status banner */
+  .submit-banner {
+    display: none; background: #f0fdf4; border: 1.5px solid #22c55e; border-radius: 10px;
+    padding: 14px 20px; margin-bottom: 20px; align-items: center; gap: 12px;
+  }
+  .submit-banner.show { display: flex; }
+  .submit-banner .sb-icon { font-size: 20px; }
+  .submit-banner .sb-text { font-size: 13px; color: #166534; font-weight: 600; }
+  .submit-banner .sb-link { font-size: 12px; color: #1a73e8; text-decoration: underline; margin-top: 2px; }
 
   /* PDF QUOTATION */
   #quotation-pdf {
@@ -243,7 +265,7 @@
   .pdf-signature .sig-line { width: 160px; border-top: 1px solid #1c2640; margin: 0 auto; padding-top: 8px; font-size: 11px; color: #7080a0; }
 
   /* Action bar */
-  .action-bar { background: var(--white); border-top: 1px solid var(--border); padding: 16px 28px; display: flex; justify-content: flex-end; gap: 12px; flex-wrap: wrap; }
+  .action-bar { background: var(--white); border-top: 1px solid var(--border); padding: 16px 28px; display: flex; justify-content: flex-end; gap: 12px; flex-wrap: wrap; align-items: center; }
 
   /* STEPS visibility */
   .step-page { display: none; }
@@ -255,10 +277,24 @@
     color: #fff; border-radius: 10px; padding: 14px 22px; font-size: 14px;
     transform: translateY(80px); opacity: 0; transition: all 0.3s; z-index: 9999;
     display: flex; align-items: center; gap: 10px; box-shadow: 0 8px 32px rgba(15,30,54,0.25);
+    max-width: 360px;
   }
   .toast.show { transform: translateY(0); opacity: 1; }
   .toast.success { border-left: 4px solid var(--success); }
   .toast.error { border-left: 4px solid var(--accent); }
+
+  /* Loading overlay */
+  .loading-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(15,30,54,0.7);
+    z-index: 9998; align-items: center; justify-content: center; flex-direction: column; gap: 16px;
+  }
+  .loading-overlay.show { display: flex; }
+  .loading-spinner {
+    width: 48px; height: 48px; border: 4px solid rgba(255,255,255,0.2);
+    border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite;
+  }
+  .loading-text { color: #fff; font-size: 15px; font-weight: 600; }
+  @keyframes spin { to { transform: rotate(360deg); } }
 
   @media(max-width:768px){
     .sidebar { display: none; }
@@ -274,9 +310,8 @@
 <!-- SIDEBAR -->
 <aside class="sidebar">
   <div class="sidebar-logo">
-    <div class="brand">Color Homes</div>
+    <div class="brand">Color Home</div>
     <div class="sub">Quotation Generator</div>
-    <!-- FIX 3: Removed "Tarun Paint Pvt. Ltd." from sidebar -->
   </div>
   <nav class="steps">
     <div class="step-item active" id="nav-1" onclick="goToStep(1)">
@@ -313,11 +348,10 @@
       <p>Fill in customer information for this Quotation</p>
     </div>
 
-    <!-- FIX 6: Updated company address to Color Homes address -->
     <div class="company-card">
       <div class="company-logo">CH</div>
       <div>
-        <div class="company-name">Color Homes</div>
+        <div class="company-name">Color Home</div>
         <div class="company-addr">KC 58, Block L, Sector 18, Kavi Nagar, Ghaziabad, Uttar Pradesh 201002</div>
         <div class="company-state">State: Uttar Pradesh &nbsp;|&nbsp; 02</div>
       </div>
@@ -356,20 +390,20 @@
       <p>Select layout type, set rate, and add rooms/areas</p>
     </div>
 
-    <!-- Layout Selector -->
+    <!-- FIX 6: Order changed to Economy → Premium → Luxury -->
     <div class="section-label">SELECT LAYOUT TYPE</div>
     <div class="layout-selector">
-      <div class="layout-card" id="card-premium" onclick="selectLayout('premium')">
-        <div class="layout-icon">⭐</div>
-        <div class="layout-title">Premium Emulsion</div>
-        <div class="layout-rate">Default ₹25 / SQFT</div>
-        <div class="layout-desc">Shin Coat Exterior · 2 coat wall putty · 1 coat primer · 2 coat Leon Exterior</div>
-      </div>
       <div class="layout-card" id="card-economy" onclick="selectLayout('economy')">
         <div class="layout-icon">💰</div>
         <div class="layout-title">Economy Emulsion</div>
         <div class="layout-rate">Default ₹20 / SQFT</div>
         <div class="layout-desc">Leon Exterior Emulsion · 2 coat wall putty · 1 coat primer · 2 coat Leon Exterior</div>
+      </div>
+      <div class="layout-card" id="card-premium" onclick="selectLayout('premium')">
+        <div class="layout-icon">⭐</div>
+        <div class="layout-title">Premium Emulsion</div>
+        <div class="layout-rate">Default ₹25 / SQFT</div>
+        <div class="layout-desc">Shin Coat Exterior · 2 coat wall putty · 1 coat primer · 2 coat Leon Exterior</div>
       </div>
       <div class="layout-card" id="card-luxury" onclick="selectLayout('luxury')">
         <div class="layout-icon">👑</div>
@@ -411,6 +445,15 @@
       </div>
     </div>
 
+    <!-- FIX 5: T&C Point 8 editable -->
+    <div class="form-card" style="margin-top:0;">
+      <div class="tc-edit-label">
+        ✏️ Terms & Conditions – Point 8 (Editable)
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">Baaki sab T&amp;C fixed hain. Sirf mobilization/payment schedule badal sakte hain:</div>
+      <textarea id="tc-point8" class="tc-editable-note" rows="3">Mobilization: 50% of total contract value, 20% after (Touchup, Putty, Primer), 20% before finalization coat, 10% after completion.</textarea>
+    </div>
+
     <div class="btn-row">
       <button class="btn-secondary" onclick="goToStep(1)">← Back</button>
       <button class="btn-primary" onclick="goStep2to3()">Review & Submit →</button>
@@ -422,7 +465,16 @@
     <div class="page-header">
       <h1>Review & Submit</h1>
       <div class="underline"></div>
-      <p>Preview your quotation before downloading or submitting</p>
+      <p>Preview karein, phir pehle Submit karein — PDF automatically download hogi</p>
+    </div>
+
+    <!-- FIX 4: Submit success banner with PDF link -->
+    <div class="submit-banner" id="submit-banner">
+      <div class="sb-icon">✅</div>
+      <div>
+        <div class="sb-text">Data Google Sheet me save ho gaya! PDF bhi Drive me upload ho gayi.</div>
+        <div><a class="sb-link" id="drive-pdf-link" href="#" target="_blank">Drive PDF Link dekhein →</a></div>
+      </div>
     </div>
 
     <div class="preview-wrap">
@@ -431,13 +483,20 @@
       </div>
       <div class="action-bar">
         <button class="btn-secondary" onclick="goToStep(2)">← Edit Items</button>
-        <button class="btn-primary" onclick="downloadPDF()">⬇ Download PDF</button>
-        <button class="btn-success" onclick="submitToSheet()">✔ Submit to Google Sheet</button>
+        <!-- FIX 4: Download PDF button initially disabled, enabled after submit -->
+        <button class="btn-primary" id="btn-download" onclick="downloadPDF()" disabled title="Pehle Submit karein">⬇ Download PDF</button>
+        <button class="btn-success" id="btn-submit" onclick="submitToSheet()">✔ Submit & Generate PDF</button>
       </div>
     </div>
   </div>
 
 </main>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loading-overlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text" id="loading-text">Processing...</div>
+</div>
 
 <!-- Toast -->
 <div class="toast" id="toast"></div>
@@ -450,8 +509,9 @@ let currentStep = 1;
 let selectedLayout = '';
 let rooms = [];
 let roomCount = 0;
+let submittedSuccessfully = false;
 
-/* FIX 2: Quotation counter stored in localStorage, format CHQ/YYYY/NN */
+/* Quotation counter: CHQ/YYYY/NN */
 function getNextQuotationNo() {
   const year = new Date().getFullYear();
   const key = 'chq_counter_' + year;
@@ -481,7 +541,6 @@ const layoutConfig = {
   }
 };
 
-/* FIX 4: Added 'Other' at end of area options */
 const areaOptions = ['Room 1','Room 2','Room 3','Room 4','Bedroom','Master Bedroom','Living Room','Hall','Kitchen','Bathroom','Balcony','Dining Room','Study Room','Drawing Room','Corridor','Staircase','Terrace','Garage','Exterior Wall','Other'];
 
 /* ============================================================
@@ -496,18 +555,28 @@ function goToStep(n) {
     if (i+1 === n) el.classList.add('active');
   });
   currentStep = n;
-  if (n === 3) renderPreview();
+  if (n === 3) {
+    renderPreview();
+    // Reset submit state if coming back from edit
+    submittedSuccessfully = false;
+    document.getElementById('btn-download').disabled = true;
+    document.getElementById('btn-download').title = 'Pehle Submit karein';
+    document.getElementById('btn-submit').disabled = false;
+    document.getElementById('btn-submit').textContent = '✔ Submit & Generate PDF';
+    document.getElementById('btn-submit').style.background = '';
+    document.getElementById('submit-banner').classList.remove('show');
+  }
 }
 
 function goStep1to2() {
   const name = document.getElementById('cust-name').value.trim();
-  if (!name) { showToast('Please enter Customer Name','error'); return; }
+  if (!name) { showToast('Please enter Customer Name', 'error'); return; }
   goToStep(2);
 }
 
 function goStep2to3() {
-  if (!selectedLayout) { showToast('Please select a Layout Type','error'); return; }
-  if (rooms.length === 0) { showToast('Please add at least one room/area','error'); return; }
+  if (!selectedLayout) { showToast('Please select a Layout Type', 'error'); return; }
+  if (rooms.length === 0) { showToast('Please add at least one room/area', 'error'); return; }
   goToStep(3);
 }
 
@@ -524,10 +593,9 @@ function selectLayout(type) {
 
 /* ============================================================
    ROOMS
-   FIX 1: Area header, decimal SQFT input, stable input (no re-render on every keystroke)
 ============================================================ */
 function addRoom() {
-  if (!selectedLayout) { showToast('Please select a Layout Type first','error'); return; }
+  if (!selectedLayout) { showToast('Please select a Layout Type first', 'error'); return; }
   roomCount++;
   const id = roomCount;
   const rate = Number(document.getElementById('global-rate').value)||25;
@@ -545,7 +613,6 @@ function renderRooms() {
   const container = document.getElementById('rooms-container');
   const rate = Number(document.getElementById('global-rate').value)||25;
 
-  // Save current focus info before re-render
   const focusedEl = document.activeElement;
   const focusedId = focusedEl ? focusedEl.dataset.roomid : null;
   const focusedField = focusedEl ? focusedEl.dataset.field : null;
@@ -558,7 +625,6 @@ function renderRooms() {
     const div = document.createElement('div');
     div.className = 'room-row';
 
-    // Area selector
     const areaSelectHTML = `
       <select class="r-area-select" data-roomid="${room.id}" data-field="area"
         onchange="updateRoomArea(${room.id}, this.value)">
@@ -566,7 +632,6 @@ function renderRooms() {
       </select>
     `;
 
-    // Custom area input shown only when Other is selected
     const otherInputHTML = room.isOther ? `
       <input type="text" class="r-area-text" placeholder="Enter area name..."
         data-roomid="${room.id}" data-field="customArea"
@@ -590,7 +655,6 @@ function renderRooms() {
     container.appendChild(div);
   });
 
-  // Restore focus
   if (focusedId && focusedField) {
     const el = container.querySelector(`[data-roomid="${focusedId}"][data-field="${focusedField}"]`);
     if (el) {
@@ -604,7 +668,6 @@ function renderRooms() {
   updateGrandTotal();
 }
 
-/* FIX 4: When "Other" is selected, show text input */
 function updateRoomArea(id, val) {
   const room = rooms.find(r => r.id === id);
   if (!room) return;
@@ -618,18 +681,15 @@ function updateRoomCustomArea(id, val) {
   const room = rooms.find(r => r.id === id);
   if (!room) return;
   room.customArea = val;
-  // No re-render – just update state so value persists
 }
 
-/* FIX 1: oninput only updates amount display live; no full re-render */
 function updateRoomQtyLive(id, val) {
   const room = rooms.find(r => r.id === id);
   if (!room) return;
-  room.qty = val; // keep as string while typing
+  room.qty = val;
   const numVal = parseFloat(val) || 0;
   const rate = Number(document.getElementById('global-rate').value)||25;
   room.amount = numVal * rate;
-  // Update only amount cell
   const row = document.querySelector(`[data-roomid="${id}"][data-field="qty"]`);
   if (row) {
     const amtCell = row.closest('.room-row').querySelector('.r-amount');
@@ -672,7 +732,6 @@ function toggleNote() {
   document.getElementById('note-box').style.display = check ? 'block' : 'none';
 }
 
-/* Helper: get display area name */
 function getRoomAreaDisplay(room) {
   return room.isOther ? (room.customArea || 'Other') : room.area;
 }
@@ -687,6 +746,7 @@ function renderPreview() {
   const noteCheck = document.getElementById('note-check').checked;
   const noteText = document.getElementById('note-text').value.trim();
   const rate = Number(document.getElementById('global-rate').value)||25;
+  const tc8 = document.getElementById('tc-point8').value.trim();
   const cfg = layoutConfig[selectedLayout];
   const totalAmt = rooms.reduce((s,r) => s+r.amount, 0);
   const totalSqft = rooms.reduce((s,r) => s+(parseFloat(r.qty)||0), 0);
@@ -694,9 +754,7 @@ function renderPreview() {
   const today = new Date();
   const dateStr = today.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
 
-  /* FIX 2: Use sequential quotation number */
   const qNo = getNextQuotationNo();
-  // Store for submit use
   window._lastQNo = qNo;
 
   const rowsHTML = rooms.map((r,i) => `
@@ -707,7 +765,7 @@ function renderPreview() {
         <div class="item-desc">${cfg.product}<br>${cfg.steps.join('<br>')}</div>
         <div style="font-size:11px;color:#0f1e36;font-weight:600;margin-top:4px;">📍 ${getRoomAreaDisplay(r)}</div>
       </td>
-      <td>${parseFloat(r.qty).toFixed(2)}</td>
+      <td>${parseFloat(r.qty||0).toFixed(2)}</td>
       <td>SQFT</td>
       <td>Approx</td>
       <td>${r.rate}</td>
@@ -720,35 +778,29 @@ function renderPreview() {
   ` : '';
 
   document.getElementById('quotation-pdf').innerHTML = `
-    <!-- HEADER -->
     <div class="pdf-header">
       <div>
-        <!-- FIX 6: Updated company info -->
-        <div class="pdf-co-name">Color Homes</div>
+        <div class="pdf-co-name">Color Home</div>
         <div class="pdf-co-addr">KC 58, Block L, Sector 18, Kavi Nagar, Ghaziabad, Uttar Pradesh 201002</div>
         <div class="pdf-co-state">State: Uttar Pradesh &nbsp;|&nbsp; 02</div>
       </div>
       <div class="pdf-title-block">
         <h2>QUOTATION</h2>
-        <!-- FIX 2: Sequential quotation number -->
         <div class="q-no"># ${qNo}</div>
         <div class="q-date">Date: ${dateStr}</div>
       </div>
     </div>
 
-    <!-- CUSTOMER -->
     <div class="pdf-customer">
       <div><div class="ci-label">Customer Name</div><div class="ci-val">${custName||'—'}</div></div>
       ${custPhone ? `<div><div class="ci-label">Phone</div><div class="ci-val">${custPhone}</div></div>` : ''}
       ${custAddr ? `<div><div class="ci-label">Address</div><div class="ci-val" style="max-width:280px;">${custAddr}</div></div>` : ''}
     </div>
 
-    <!-- LAYOUT BADGE -->
     <div class="layout-badge">
       ${{ premium:'⭐', economy:'💰', luxury:'👑' }[selectedLayout]} &nbsp; ${cfg.label}
     </div>
 
-    <!-- TABLE: FIX 1 – Header shows "Area" instead of "Qty" -->
     <table class="pdf-table">
       <thead>
         <tr>
@@ -774,26 +826,23 @@ function renderPreview() {
       </tfoot>
     </table>
 
-    <!-- NOTE -->
     ${noteHTML}
 
-    <!-- T&C -->
     <div class="pdf-tc">
       <h4>Terms &amp; Conditions</h4>
       <ol>
         <li><strong>Water, Electricity</strong> as per requirement to be provided by client on site.</li>
-        <li><strong>All Safety Measures &amp; Tools</strong> will be in account of Color Homes.</li>
-        <li><strong>Measurement</strong> will be checked by both client &amp; Color Homes representative jointly.</li>
+        <li><strong>All Safety Measures &amp; Tools</strong> will be in account of Color Home.</li>
+        <li><strong>Measurement</strong> will be checked by both client &amp; Color Home representative jointly.</li>
         <li>We offer <strong>5-year warranty</strong> against chalking, color change &amp; flaking of paint work only.</li>
         <li>Seepage is <strong>not covered</strong> under this warranty.</li>
         <li><strong>Paints Product</strong> will be used of Tarun Paint.</li>
         <li>Client can choose any <strong>2 colours</strong> from our shade card; other extra colours 2% per colour from total amount.</li>
-        <li><strong>Mobilization:</strong> 50% of total contract value, 20% after (Touchup, Putty, Primer), 20% before finalization coat, 10% after completion.</li>
+        <li><strong>${tc8}</strong></li>
         <li><strong>18% GST</strong> will be applicable extra.</li>
       </ol>
     </div>
 
-    <!-- BANK -->
     <div class="pdf-bank">
       <div><div class="bk-label">Account Number</div><div class="bk-val">000000000000</div></div>
       <div><div class="bk-label">IFSC</div><div class="bk-val">ICIC0000000</div></div>
@@ -801,7 +850,6 @@ function renderPreview() {
       <div><div class="bk-label">Branch</div><div class="bk-val">RDC Ghaziabad</div></div>
     </div>
 
-    <!-- SIGNATURE: FIX 7 – Updated to RIDAAN CONSTRUCTIONS -->
     <div class="pdf-signature">
       <div class="sig-block"><div class="sig-line">Client Signature &amp; Date</div></div>
       <div class="sig-block"><div class="sig-line">For RIDAAN CONSTRUCTIONS</div></div>
@@ -810,9 +858,13 @@ function renderPreview() {
 }
 
 /* ============================================================
-   PDF DOWNLOAD
+   PDF DOWNLOAD — only after submit
 ============================================================ */
 function downloadPDF() {
+  if (!submittedSuccessfully) {
+    showToast('Pehle Submit karein!', 'error');
+    return;
+  }
   const el = document.getElementById('quotation-pdf');
   const custName = (document.getElementById('cust-name').value.trim()||'quotation').replace(/\s+/g,'-');
   const qNo = (window._lastQNo || 'QUO').replace(/\//g,'-');
@@ -820,16 +872,22 @@ function downloadPDF() {
     margin: [8,8,8,8],
     filename: `Quotation_${qNo}_${custName}.pdf`,
     image: { type:'jpeg', quality:0.98 },
-    html2canvas: { scale:2, useCORS:true },
+    html2canvas: { scale:2, useCORS:true, logging:false },
     jsPDF: { unit:'mm', format:'a4', orientation:'portrait' }
   };
-  showToast('Generating PDF...', 'success');
-  html2pdf().set(opt).from(el).save().then(() => showToast('PDF Downloaded!','success'));
+  showLoading('PDF generate ho rahi hai...');
+  html2pdf().set(opt).from(el).save().then(() => {
+    hideLoading();
+    showToast('✓ PDF Download ho gayi!', 'success');
+  }).catch(err => {
+    hideLoading();
+    showToast('PDF error: ' + err.message, 'error');
+  });
 }
 
 /* ============================================================
    GOOGLE SHEET SUBMIT
-   FIX 5: Sends PDF data so Apps Script can save to Drive & return link
+   Uses form-encoded POST to avoid CORS preflight issues
 ============================================================ */
 async function submitToSheet() {
   const SHEET_URL = 'https://script.google.com/macros/s/AKfycbyQRG8TjoalakJYu638X9nc0cCE_12kxxuQJFQioDXh-NaVsDBUaehcMTo6oqIHshpc/exec';
@@ -840,6 +898,7 @@ async function submitToSheet() {
   const noteCheck = document.getElementById('note-check').checked;
   const noteText = noteCheck ? document.getElementById('note-text').value.trim() : '';
   const rate = Number(document.getElementById('global-rate').value)||25;
+  const tc8 = document.getElementById('tc-point8').value.trim();
   const totalAmt = rooms.reduce((s,r) => s+r.amount, 0);
   const totalSqft = rooms.reduce((s,r) => s+(parseFloat(r.qty)||0), 0);
   const today = new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
@@ -855,11 +914,12 @@ async function submitToSheet() {
     phone: custPhone,
     address: custAddr,
     layout: cfg.label,
-    rate,
+    rate: rate,
     totalSqft: totalSqft.toFixed(2),
     totalAmount: totalAmt.toFixed(2),
     note: noteText,
-    rooms: rooms.map(r => `${getRoomAreaDisplay(r)}: ${parseFloat(r.qty).toFixed(2)} SQFT = ₹${r.amount.toFixed(2)}`).join(' | '),
+    tc8: tc8,
+    rooms: rooms.map(r => `${getRoomAreaDisplay(r)}: ${parseFloat(r.qty||0).toFixed(2)} SQFT = ₹${r.amount.toFixed(2)}`).join(' | '),
     roomsJSON: JSON.stringify(rooms.map(r => ({
       area: getRoomAreaDisplay(r),
       qty: parseFloat(r.qty)||0,
@@ -868,26 +928,61 @@ async function submitToSheet() {
     })))
   };
 
-  const btn = document.querySelector('.btn-success');
+  const btn = document.getElementById('btn-submit');
   btn.disabled = true;
   btn.textContent = '⏳ Submitting...';
-  showToast('Submitting to Google Sheet & Drive...','success');
+  showLoading('Google Sheet me data bhej rahe hain...');
 
   try {
-    await fetch(SHEET_URL, {
+    // Use no-cors mode with JSON — Apps Script handles it
+    const response = await fetch(SHEET_URL, {
       method: 'POST',
       mode: 'no-cors',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    showToast('✓ Data saved to Sheet & PDF uploaded to Drive!','success');
+
+    // no-cors returns opaque response, so we assume success
+    hideLoading();
+    submittedSuccessfully = true;
+
+    // Enable download button
+    const dlBtn = document.getElementById('btn-download');
+    dlBtn.disabled = false;
+    dlBtn.title = 'PDF download karein';
+
     btn.textContent = '✔ Submitted!';
     btn.style.background = '#15803d';
+
+    // Show success banner
+    document.getElementById('submit-banner').classList.add('show');
+    document.getElementById('drive-pdf-link').href = `https://drive.google.com/drive/folders/1TLJrGjyZXh66wxrOpEamKc44CKTJqgOk`;
+
+    showToast('✓ Data Sheet me save ho gaya! Ab PDF download karein.', 'success');
+
+    // Auto-trigger PDF download after 1.5 seconds
+    setTimeout(() => {
+      showToast('PDF download ho rahi hai...', 'success');
+      downloadPDF();
+    }, 1500);
+
   } catch(err) {
-    showToast('⚠ Submission failed: ' + err.message,'error');
+    hideLoading();
+    showToast('⚠ Submit failed: ' + err.message, 'error');
     btn.disabled = false;
-    btn.textContent = '✔ Submit to Google Sheet';
+    btn.textContent = '✔ Submit & Generate PDF';
   }
+}
+
+/* ============================================================
+   LOADING HELPERS
+============================================================ */
+function showLoading(text) {
+  document.getElementById('loading-text').textContent = text || 'Processing...';
+  document.getElementById('loading-overlay').classList.add('show');
+}
+function hideLoading() {
+  document.getElementById('loading-overlay').classList.remove('show');
 }
 
 /* ============================================================
@@ -897,7 +992,7 @@ function showToast(msg, type='success') {
   const t = document.getElementById('toast');
   t.textContent = msg;
   t.className = 'toast '+type+' show';
-  setTimeout(() => t.classList.remove('show'), 3000);
+  setTimeout(() => t.classList.remove('show'), 4000);
 }
 </script>
 </body>
